@@ -27,59 +27,92 @@ class _GuidageState extends State<Guidage> with SingleTickerProviderStateMixin {
 
   final FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   final List<BluetoothDevice> devicesList = <BluetoothDevice>[];
-  final Map<Guid, List<int>> readValues = <Guid, List<int>>{};
+  // final Map<Guid, List<int>> readValues = <Guid, List<int>>{};
 
   _addDeviceTolist(final BluetoothDevice device) {
     if (!devicesList.contains(device) && device.name.toString() == "Kontakt") {
-      setState(() {
+      setState(() async {
         devicesList.add(device);
+        int deviceRssi = (await getRSSIbyBLEid(device.id.toString())) as int;
+        if (deviceRssi < rssi) {
+          nearestDeviceId = device.id.toString();
+        }
       });
     }
   }
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   flutterBlue.connectedDevices
+  //       .asStream()
+  //       .listen((List<BluetoothDevice> devices) {
+  //     for (BluetoothDevice device in devices) {
+  //       _addDeviceTolist(device);
+  //     }
+  //   });
+  //   flutterBlue.scanResults.listen((List<ScanResult> results) {
+  //     for (ScanResult result in results) {
+  //       _addDeviceTolist(result.device);
+  //     }
+  //   });
+  //   flutterBlue.startScan();
+  //   super.initState();
+  //   _controller = AnimationController(
+  //     vsync: this,
+  //     duration: const Duration(seconds: 1),
+  //   );
+
+  //   // Start updating direction every second
+  //   Timer.periodic(const Duration(seconds: 1), (_) {
+  //     setState(() {
+  //       _currentDirection = _getNextDirection(right);
+  //     });
+  //   });
+
+  //   _controller.repeat(reverse: true);
+  // }
+
   @override
   void initState() {
     super.initState();
-    flutterBlue.connectedDevices
-        .asStream()
-        .listen((List<BluetoothDevice> devices) {
-      for (BluetoothDevice device in devices) {
-        _addDeviceTolist(device);
-      }
-    });
+    flutterBlue.startScan();
     flutterBlue.scanResults.listen((List<ScanResult> results) {
       for (ScanResult result in results) {
         _addDeviceTolist(result.device);
       }
     });
-    flutterBlue.startScan();
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-
-    // Start updating direction every second
-    Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _currentDirection = _getNextDirection(right);
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      print("------------------  Device list: ${devicesList.length}");
+      flutterBlue.scanResults.listen((List<ScanResult> results) {
+        for (ScanResult result in results) {
+          _addDeviceTolist(result.device);
+        }
+        setState(() {
+          _currentDirection = _getNextDirection(nearestDeviceId);
+        });
       });
+      _restartScan();
     });
-
-    _controller.repeat(reverse: true);
   }
 
-// String getNearestBLE(){
+  void _restartScan() {
+    flutterBlue.stopScan();
+    flutterBlue.startScan();
+  }
 
-//   return
-// }
   Future<String?> getRSSIbyBLEid(String deviceId) async {
-    List<ScanResult> scanResults = await flutterBlue.scanResults.first;
-    ScanResult? scanResult = scanResults.firstWhere(
-      (result) => result.device.id.toString() == deviceId,
-      // orElse: () => null,
-    );
-    return scanResult.rssi.toString();
+    try {
+      List<ScanResult> scanResults = await flutterBlue.scanResults.first;
+      ScanResult? scanResult = scanResults.firstWhere(
+        (result) => result.device.id.toString() == deviceId,
+        // orElse: () => null,
+      );
+      return scanResult.rssi.toString();
+    } catch (e) {
+      print('Error occurred: $e');
+      return null; // or handle the error as per your requirement
+    }
   }
 
   Direction _getNextDirection(String deviceId) {
@@ -93,7 +126,7 @@ class _GuidageState extends State<Guidage> with SingleTickerProviderStateMixin {
     else if (left == deviceId)
       return Direction.left;
     else
-      return Direction.forward; // Default to forward if no match found
+      return Direction.forward;
   }
 
   double _getAngleForDirection(Direction direction) {

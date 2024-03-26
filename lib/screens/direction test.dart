@@ -2,43 +2,70 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_ble/screens/device_model.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-enum Direction { forward, backward, right, left }
-
-class Devices extends StatefulWidget {
-  const Devices({super.key});
+class DirectionScreen extends StatefulWidget {
+  const DirectionScreen({super.key});
 
   @override
-  _DevicesState createState() => _DevicesState();
+  _DirectionScreenState createState() => _DirectionScreenState();
 }
 
-class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
+class _DirectionScreenState extends State<DirectionScreen>
+    with SingleTickerProviderStateMixin {
   int rssi = -1000;
-  Direction _currentDirection = Direction.forward;
   final String forward = "E1:DC:0C:14:69:75";
   final String backward = "EC:29:A0:D7:8D:EA";
   final String right = "E0:E2:41:1A:85:F2";
   final String left = "D6:DA:4D:6B:F9:C1";
   final FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   final List<BluetoothDevice> devicesList = <BluetoothDevice>[];
-
+  String nearestDeviceId = "";
+  List<DeviceModel> devices = <DeviceModel>[];
+  DeviceModel deviceWithMaxRssi = DeviceModel("_name", "_id", -1000);
   @override
   void initState() {
     super.initState();
     flutterBlue.startScan();
     flutterBlue.scanResults.listen((List<ScanResult> results) {
       for (ScanResult result in results) {
-        _addDeviceTolist(result.device);
+        if (result.device.name == "Kontakt") {
+          _addDeviceTolist(result.device);
+          setState(() {
+            int newRSSI = result.rssi;
+            // if (newRSSI > rssi) {
+            rssi = newRSSI;
+            nearestDeviceId = result.device.id.toString();
+            // }
+          });
+        }
       }
     });
-    Timer.periodic(const Duration(seconds: 10), (timer) {
+    Timer.periodic(const Duration(seconds: 3), (timer) {
       print("------------------  Device list: ${devicesList.length}");
       flutterBlue.scanResults.listen((List<ScanResult> results) {
         for (ScanResult result in results) {
-          _addDeviceTolist(result.device);
+          if (result.device.name == "Kontakt") {
+            _addDeviceTolist(result.device);
+            DeviceModel deviceModel = DeviceModel(
+                result.device.name, result.device.id.toString(), result.rssi);
+            devices.add(deviceModel);
+            setState(() {
+              int newRSSI = result.rssi;
+              // if (newRSSI > rssi) {
+              rssi = newRSSI;
+              nearestDeviceId = result.device.id.toString();
+              // }
+            });
+          }
         }
       });
+      setState(() {
+        deviceWithMaxRssi = devices.reduce(
+            (current, next) => current.rssi > next.rssi ? current : next);
+      });
+
       _restartScan();
     });
   }
@@ -49,10 +76,24 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
   }
 
   _addDeviceTolist(final BluetoothDevice device) {
-    if (!devicesList.contains(device) && device.name == "Kontakt") {
+    if (!devicesList.contains(device)) {
       setState(() {
         devicesList.add(device);
       });
+    }
+  }
+
+  Future<int?> getRSSIbyBLEid(String deviceId) async {
+    try {
+      List<ScanResult> scanResults = await flutterBlue.scanResults.first;
+      ScanResult? scanResult = scanResults.firstWhere(
+        (result) => result.device.id.toString() == deviceId,
+        // orElse: () => null,
+      );
+      return scanResult.rssi;
+    } catch (e) {
+      print('Error occurred: $e');
+      return null; // or handle the error as per your requirement
     }
   }
 
@@ -93,6 +134,7 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
                     if (snapshot.hasData) {
                       List<ScanResult> scanResults = snapshot.data!;
                       ScanResult? scanResult;
+
                       try {
                         scanResult = scanResults.firstWhere(
                           (result) => result.device.id == device.id,
@@ -151,8 +193,22 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
           },
         ),
       ),
-      body: Center(
-        child: _buildListViewOfDevices(),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'nearestDeviceId ${deviceWithMaxRssi.id}',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 20),
+          Expanded(
+            // Wrap ListView with Expanded
+            child: _buildListViewOfDevices(),
+          ),
+        ],
       ),
     );
   }
