@@ -1,46 +1,49 @@
-// ignore_for_file: avoid_print, library_private_types_in_public_api
-
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_ble/screens/device_model.dart';
+import 'package:flutter_ble/web_service/web_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-enum Direction { forward, backward, right, left }
-
-class Devices extends StatefulWidget {
-  const Devices({super.key});
+class DeviceScreen extends StatefulWidget {
+  const DeviceScreen({super.key});
 
   @override
-  _DevicesState createState() => _DevicesState();
+  _DeviceScreenState createState() => _DeviceScreenState();
 }
 
-class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
-  int rssi = -1000;
-  Direction _currentDirection = Direction.forward;
-  final String forward = "E1:DC:0C:14:69:75";
-  final String backward = "EC:29:A0:D7:8D:EA";
-  final String right = "E0:E2:41:1A:85:F2";
-  final String left = "D6:DA:4D:6B:F9:C1";
+class _DeviceScreenState extends State<DeviceScreen>
+    with SingleTickerProviderStateMixin {
   final FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
-  final List<BluetoothDevice> devicesList = <BluetoothDevice>[];
+  List<BluetoothDevice> allDevicesList = <BluetoothDevice>[];
+  List<BluetoothDevice> onlyBLEDevicesList = <BluetoothDevice>[];
+  late List<DeviceModel> devices = <DeviceModel>[];
+  bool isChecked = false;
 
   @override
   void initState() {
     super.initState();
-    flutterBlue.startScan();
+    _scanDevices();
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      _scanDevices();
+    });
+  }
+
+  void _scanDevices() {
     flutterBlue.scanResults.listen((List<ScanResult> results) {
+      devices.clear();
+
       for (ScanResult result in results) {
         _addDeviceTolist(result.device);
+        DeviceModel deviceModel = DeviceModel(
+          result.device.name,
+          result.device.id.toString(),
+          result.rssi,
+        );
+        devices.add(deviceModel);
       }
+      int newDirection = WebService().getDirectionAngle(devices);
     });
-    Timer.periodic(const Duration(seconds: 10), (timer) {
-      print("------------------  Device list: ${devicesList.length}");
-      flutterBlue.scanResults.listen((List<ScanResult> results) {
-        for (ScanResult result in results) {
-          _addDeviceTolist(result.device);
-        }
-      });
-      _restartScan();
-    });
+    _restartScan();
   }
 
   void _restartScan() {
@@ -49,16 +52,20 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
   }
 
   _addDeviceTolist(final BluetoothDevice device) {
-    if (!devicesList.contains(device) && device.name == "Kontakt") {
+    if (!allDevicesList.contains(device)) {
       setState(() {
-        devicesList.add(device);
+        allDevicesList.add(device);
+        if (device.type == BluetoothDeviceType.le) {
+          onlyBLEDevicesList.add(device);
+        }
       });
     }
   }
 
-  ListView _buildListViewOfDevices() {
+  Widget _buildListViewOfDevices(List<BluetoothDevice> devices) {
     List<Widget> containers = <Widget>[];
-    for (BluetoothDevice device in devicesList) {
+
+    for (BluetoothDevice device in devices) {
       containers.add(
         Padding(
           padding: const EdgeInsets.all(16.0),
@@ -93,6 +100,7 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
                     if (snapshot.hasData) {
                       List<ScanResult> scanResults = snapshot.data!;
                       ScanResult? scanResult;
+
                       try {
                         scanResult = scanResults.firstWhere(
                           (result) => result.device.id == device.id,
@@ -151,8 +159,36 @@ class _DevicesState extends State<Devices> with SingleTickerProviderStateMixin {
           },
         ),
       ),
-      body: Center(
-        child: _buildListViewOfDevices(),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'BLE only ',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Checkbox(
+                value: isChecked,
+                onChanged: (value) {
+                  setState(() {
+                    isChecked = value!;
+                  });
+                },
+              )
+            ],
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: isChecked
+                ? _buildListViewOfDevices(onlyBLEDevicesList)
+                : _buildListViewOfDevices(allDevicesList),
+          ),
+        ],
       ),
     );
   }

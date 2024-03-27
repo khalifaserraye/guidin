@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ble/screens/devices.dart';
 import 'package:flutter_ble/screens/guidage.dart';
+import 'package:flutter_ble/screens/guidance.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -26,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => Devices()),
+                  MaterialPageRoute(builder: (context) => const DeviceScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -43,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => Guidage()),
+                  MaterialPageRoute(builder: (context) => GuidanceScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(
