@@ -1,7 +1,4 @@
-import 'dart:ffi';
-import 'dart:math';
-
-import 'package:flutter_ble/screens/device_model.dart';
+import 'package:flutter_ble/data/device_model.dart';
 
 class WebService {
   int getDirectionAngle(List<DeviceModel> devices) {

@@ -1,12 +1,11 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: library_private_types_in_public_api, curly_braces_in_flow_control_structures
 
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_ble/screens/device_model.dart';
+import 'package:flutter_ble/data/device_model.dart';
 import 'package:flutter_ble/web_service/web_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:animated_icon/animated_icon.dart';
 
 class GuidanceScreen extends StatefulWidget {
   const GuidanceScreen({super.key});
@@ -20,9 +19,23 @@ class _GuidanceScreenState extends State<GuidanceScreen>
   final FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   List<BluetoothDevice> allDevicesList = <BluetoothDevice>[];
   List<BluetoothDevice> onlyBLEDevicesList = <BluetoothDevice>[];
-  int direction = 0;
+  int directionAngle = -1;
   late List<DeviceModel> devices = <DeviceModel>[];
-  bool isChecked = false;
+  final List<String> places = [
+    'Information Desk',
+    'Elevators',
+    'Escalators',
+    'ATM',
+    'Toilets',
+    'Parking',
+    'Food Court',
+    'Restaurants',
+    'Cinema',
+    'Play Area',
+    'Retail Stores',
+  ];
+  bool placeSelected = false;
+  String? destination;
 
   @override
   void initState() {
@@ -49,7 +62,7 @@ class _GuidanceScreenState extends State<GuidanceScreen>
       int newDirection = WebService().getDirectionAngle(devices);
 
       setState(() {
-        direction = newDirection;
+        directionAngle = newDirection;
       });
     });
     _restartScan();
@@ -71,43 +84,16 @@ class _GuidanceScreenState extends State<GuidanceScreen>
     }
   }
 
-  // double _getAngleForDirection(String direction) {
-  //   switch (direction) {
-  //     case forward:
-  //       return 0.0;
-  //     case right:
-  //       return pi / 2; // 90 degrees
-  //     case backward:
-  //       return pi; // 180 degrees
-  //     case left:
-  //       return -pi / 2; // -90 degrees
-  //   }
-  // }
-
-  double convertAngle(double angle) {
-    switch (angle) {
-      case 0:
-        return 0.0;
-      case 90:
-        return pi / 2;
-      case 180:
-        return pi;
-      case (-90):
-        return -pi / 2;
-      default:
-        return 0;
-    }
-  }
-
   String getDirectionName(int angle) {
-    if (angle == 90) {
+    if (angle == 0) return 'Continue straight';
+    if (angle == 90)
       return 'Turn right';
-    } else if (angle == 180)
+    else if (angle == 180)
       return 'Turn around';
     else if (angle == -90)
       return 'Turn left';
     else
-      return 'Continue straight';
+      return 'Wait';
   }
 
   @override
@@ -129,21 +115,122 @@ class _GuidanceScreenState extends State<GuidanceScreen>
           },
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      body: placeSelected
+          ? (directionAngle == -1 ? buildWaitingDirection() : buildDirection())
+          : buildPlaceDropdownButton(places),
+    );
+  }
+
+  Widget buildPlaceDropdownButton(List<String> places) {
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        const Text(
+          'Select a place',
+          style: TextStyle(
+            fontSize: 30,
+            color: Colors.blueGrey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.blueGrey, width: 2.0),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: DropdownButton<String>(
+              iconSize: 40,
+              value: null,
+              onChanged: (String? newValue) {
+                setState(() {
+                  placeSelected = true;
+                  destination = newValue!;
+                });
+              },
+              items: places.map((String place) {
+                return DropdownMenuItem<String>(
+                  value: place,
+                  child: Text(place),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Column buildDirection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            children: <TextSpan>[
+              const TextSpan(
+                text: 'Going to ',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.blueGrey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              TextSpan(
+                text: destination,
+                style: const TextStyle(
+                  fontSize: 32,
+                  color: Colors.blueGrey,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        AnimatedArrow(
+          angle: directionAngle * (pi / 180),
+        ),
+        Text(
+          getDirectionName(directionAngle).toString(),
+          style: const TextStyle(
+            fontSize: 40,
+            color: Colors.blueGrey,
+            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Center buildWaitingDirection() {
+    return const Center(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 20),
+          SizedBox(
+            width: 160,
+            height: 160,
+            child: CircularProgressIndicator(
+              strokeWidth: 12,
+              backgroundColor: Colors.blueGrey,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          SizedBox(height: 40),
           Text(
-            getDirectionName(direction).toString(),
-            style: const TextStyle(
+            "Getting direction ...",
+            style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.bold,
             ),
-          ),
-          const SizedBox(height: 20),
-          AnimatedArrow(
-            angle: direction * (pi / 180),
           ),
         ],
       ),
@@ -154,7 +241,7 @@ class _GuidanceScreenState extends State<GuidanceScreen>
 class AnimatedArrow extends StatefulWidget {
   final double angle;
 
-  const AnimatedArrow({Key? key, required this.angle}) : super(key: key);
+  const AnimatedArrow({super.key, required this.angle});
 
   @override
   _AnimatedArrowState createState() => _AnimatedArrowState();
@@ -167,7 +254,6 @@ class _AnimatedArrowState extends State<AnimatedArrow>
   @override
   void initState() {
     super.initState();
-    // Toggle the visibility of the arrow every 500 milliseconds
     Timer.periodic(const Duration(milliseconds: 500), (timer) {
       setState(() {
         isArrowShown = !isArrowShown;
@@ -183,8 +269,12 @@ class _AnimatedArrowState extends State<AnimatedArrow>
         child: Transform.rotate(
           angle: widget.angle - pi / 2,
           child: isArrowShown
-              ? const Icon(Icons.arrow_forward, size: 220)
-              : SizedBox.shrink(), // Hide arrow when not shown
+              ? const Icon(
+                  Icons.arrow_forward,
+                  size: 220,
+                  color: Colors.blueGrey,
+                )
+              : const SizedBox.shrink(),
         ),
       ),
     );

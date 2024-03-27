@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_ble/screens/device_model.dart';
-import 'package:flutter_ble/web_service/web_service.dart';
+import 'package:flutter_ble/data/device_model.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class DeviceScreen extends StatefulWidget {
@@ -41,7 +40,6 @@ class _DeviceScreenState extends State<DeviceScreen>
         );
         devices.add(deviceModel);
       }
-      int newDirection = WebService().getDirectionAngle(devices);
     });
     _restartScan();
   }
@@ -73,15 +71,34 @@ class _DeviceScreenState extends State<DeviceScreen>
             height: 120,
             child: Column(
               children: <Widget>[
-                Text(
-                  device.name == ''
-                      ? "Device name: (unknown device)"
-                      : "Device name: ${device.name}",
-                  style: const TextStyle(fontSize: 20),
+                Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.bluetooth),
+                        Text(
+                          device.name == ''
+                              ? "Device name: (unknown device)"
+                              : "Device name: ${device.name}",
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight
+                                .bold, // Example: You can adjust font weight
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                        height: 8), // Example: Adding some vertical spacing
+                  ],
                 ),
                 Text(
                   "Device ID: ${device.id}",
-                  style: const TextStyle(fontSize: 20),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontStyle: FontStyle.italic, // Example: Adding italic style
+                  ),
                 ),
                 StreamBuilder<List<ScanResult>>(
                   stream: flutterBlue.scanResults,
@@ -89,7 +106,11 @@ class _DeviceScreenState extends State<DeviceScreen>
                     if (snapshot.hasError) {
                       return Text(
                         'Error: ${snapshot.error}',
-                        style: const TextStyle(fontSize: 20),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: Colors
+                              .red, // Example: Changing text color for error
+                        ),
                       );
                     }
 
@@ -116,14 +137,20 @@ class _DeviceScreenState extends State<DeviceScreen>
                       if (scanResult != null) {
                         return Text(
                           'RSSI: ${scanResult.rssi.toString()}',
-                          style: const TextStyle(fontSize: 20),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            color: Colors.green, // Example: Changing text color
+                          ),
                         );
                       }
                     }
 
                     return const Text(
                       'RSSI: ...',
-                      style: TextStyle(fontSize: 20),
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.grey, // Example: Changing text color
+                      ),
                     );
                   },
                 ),
@@ -173,6 +200,7 @@ class _DeviceScreenState extends State<DeviceScreen>
                 ),
               ),
               Checkbox(
+                activeColor: Colors.blueGrey,
                 value: isChecked,
                 onChanged: (value) {
                   setState(() {
